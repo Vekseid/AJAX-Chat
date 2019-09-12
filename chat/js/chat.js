@@ -1491,6 +1491,8 @@ var ajaxChat = {
 	handleInputFieldKeyDown: function(event) {
 		var text, lastWord, i;
 
+		// TODO: event.key vs. keyCode.
+
 		// Enter key without shift should send messages
 		if(event.keyCode === 13 && !event.shiftKey) {
 			this.sendMessage();
