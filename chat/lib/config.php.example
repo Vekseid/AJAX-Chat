@@ -17,10 +17,10 @@ define('AJAX_CHAT_USER',		1);
 define('AJAX_CHAT_GUEST',		0);
 
 // AJAX Chat config parameters:
-$config = array();
+$config = [];
 
 // Database connection values:
-$config['dbConnection'] = array();
+$config['dbConnection'] = [];
 // Database hostname:
 $config['dbConnection']['host'] = null;
 // Database username:
@@ -29,7 +29,7 @@ $config['dbConnection']['user'] = null;
 $config['dbConnection']['pass'] = null;
 // Database name:
 $config['dbConnection']['name'] = null;
-// Database type:
+// Database type: (your choices are mysqli or mysqli or mysqli)
 $config['dbConnection']['type'] = null;
 // Database link:
 $config['dbConnection']['link'] = null;

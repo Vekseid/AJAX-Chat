@@ -2646,8 +2646,7 @@ var ajaxChat = {
 
 	getActiveStyle: function() {
 		var cookie = this.readCookie(this.sessionName + '_style');
-		var style = cookie ? cookie : this.getPreferredStyleSheet();
-		return style;
+		return cookie ? cookie : this.getPreferredStyleSheet();
 	},
 
 	initStyle: function() {

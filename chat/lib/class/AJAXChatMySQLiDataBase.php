@@ -13,20 +13,19 @@ class AJAXChatDataBaseMySQLi {
     protected
 		$_connectionID,
 		$_errno = 0,
-		$_error = '',
-		$_dbName;
+		$_error = '';
 
 	function __construct(&$dbConnectionConfig) {
 		$this->_connectionID = $dbConnectionConfig['link'];
-		$this->_dbName = $dbConnectionConfig['name'];
 	}
 	
 	// Method to connect to the DataBase server:
 	function connect(&$dbConnectionConfig) {
-		@$this->_connectionID = new mysqli(
+		$this->_connectionID = new mysqli(
 			$dbConnectionConfig['host'],
 			$dbConnectionConfig['user'],
-			$dbConnectionConfig['pass']
+			$dbConnectionConfig['pass'],
+            $dbConnectionConfig['name']
 		);
 		if($this->_connectionID->connect_errno) {
 			$this->_errno = mysqli_connect_errno();
@@ -35,18 +34,7 @@ class AJAXChatDataBaseMySQLi {
 		}
 		return true;
 	}
-	
-	// Method to select the DataBase:
-	function select($dbName) {
-		if(!$this->_connectionID->select_db($dbName)) {
-			$this->_errno = $this->_connectionID->errno;
-			$this->_error = $this->_connectionID->error;
-			return false;
-		}
-		$this->_dbName = $dbName;
-		return true;	
-	}
-	
+
 	// Method to determine if an error has occured:
 	function error() {
 		return (bool)$this->_error;
@@ -76,11 +64,6 @@ class AJAXChatDataBaseMySQLi {
 	// Method to perform SQL queries:
 	function sqlQuery($sql) {
 		return new AJAXChatMySQLiQuery($sql, $this->_connectionID);
-	}
-
-	// Method to retrieve the current DataBase name:
-	function getName() {
-		return $this->_dbName;
 	}
 
 	// Method to retrieve the last inserted ID:

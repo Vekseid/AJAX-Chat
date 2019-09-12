@@ -14,20 +14,13 @@ class AJAXChatDataBase {
 		$_db;
 
 	function __construct(&$dbConnectionConfig) {
+	    // Saved for potential postgres in whatever future.
 		switch($dbConnectionConfig['type']) {
 			case 'mysqli':
 				$this->_db = new AJAXChatDatabaseMySQLi($dbConnectionConfig);
 				break;
-			case 'mysql':
-				$this->_db = new AJAXChatDatabaseMySQL($dbConnectionConfig);
-				break;
 			default:
-				// Use MySQLi if available, else MySQL (and check the type of a given database connection object):
-				if(function_exists('mysqli_connect') && (!$dbConnectionConfig['link'] || is_object($dbConnectionConfig['link']))) {
-					$this->_db = new AJAXChatDatabaseMySQLi($dbConnectionConfig);
-				} else {
-					$this->_db = new AJAXChatDatabaseMySQL($dbConnectionConfig);	
-				}
+                $this->_db = new AJAXChatDatabaseMySQLi($dbConnectionConfig);
 		}
 	}
 	
@@ -36,12 +29,7 @@ class AJAXChatDataBase {
 		return $this->_db->connect($dbConnectionConfig);
 	}
 	
-	// Method to select the DataBase:
-	function select($dbName) {
-		return $this->_db->select($dbName);
-	}
-	
-	// Method to determine if an error has occured:
+	// Method to determine if an error has occurred:
 	function error() {
 		return $this->_db->error();
 	}
@@ -64,13 +52,6 @@ class AJAXChatDataBase {
 	// Method to perform SQL queries:
 	function sqlQuery($sql) {
 		return $this->_db->sqlQuery($sql);
-	}
-	
-	// Method to retrieve the current DataBase name:
-	function getName() {
-		return $this->_db->getName();
-		//If your database has hyphens ( - ) in it, try using this instead:
-		//return '`'.$this->_db->getName().'`';
 	}
 
 	// Method to retrieve the last inserted ID:

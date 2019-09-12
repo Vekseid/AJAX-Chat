@@ -39,7 +39,7 @@ class CustomAJAXChat extends AJAXChat {
 	function initCustomRequestVars() {
 		global $context;
 
-		// Auto-login phpBB users:
+		// Auto-login users:
 		if(!$this->getRequestVar('logout') && !$context['user']['is_guest']) {
 			$this->setRequestVar('login', true);
 		}
@@ -47,7 +47,7 @@ class CustomAJAXChat extends AJAXChat {
 
 	// Replace custom template tags:
 	function replaceCustomTemplateTags($tag, $tagContent) {
-		global $context,$boardurl;
+		global $context, $boardurl;
 		
 		switch($tag) {
 

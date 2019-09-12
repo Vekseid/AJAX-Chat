@@ -102,7 +102,6 @@ class AJAXChat {
 				die();
 			}
 			// Select the database:
-			$this->db->select($this->_config['dbConnection']['name']);
 			if($this->db->error()) {
 				echo $this->db->getError();
 				die();
@@ -113,7 +112,7 @@ class AJAXChat {
 	}
 	
 	function getDataBaseTable($table) {
-		return ($this->db->getName() ? '`'.$this->db->getName().'`.'.$this->getConfig('dbTableNames',$table) : $this->getConfig('dbTableNames',$table));
+		return ($this->getConfig('dbTableNames',$table));
 	}
 
 	function initSession() {
