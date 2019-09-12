@@ -5,6 +5,10 @@
  * @copyright (c) Sebastian Tschan
  * @license Modified MIT License
  * @link https://blueimp.net/ajax/
+ * 
+ * SMF integration:
+ * http://www.simplemachines.org/
  */
 
-// Include custom libraries and initialization code here
+// SMF initialization:
+require_once(dirname(AJAX_CHAT_PATH) . '/SSI.php');
