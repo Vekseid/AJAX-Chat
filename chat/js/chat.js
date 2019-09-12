@@ -54,15 +54,6 @@ var ajaxChat = {
 	privateMessageDiff: null,
 	showChannelMessages: null,
 	messageTextMaxLength: null,
-	socketServerEnabled: null,
-	socketServerHost: null,
-	socketServerPort: null,
-	socketServerChatID: null,
-	socket: null,
-	socketIsConnected: null,
-	socketTimerRate: null,
-	socketReconnectTimer: null,
-	socketRegistrationID: null,
 	userID: null,
 	userName: null,
 	userRole: null,
@@ -91,13 +82,13 @@ var ajaxChat = {
 	DOMbufferRowClass: null,
 	inUrlBBCode: null,
 	debug: null,
-
-	init: function(config, lang, initSettings, initStyle, initialize, initializeFunction, finalizeFunction) {
+	
+	init: function(config, lang, initSettings, initStyle, initialize, initializeFunction, finalizeFunction) {	
 		this.httpRequest		= {};
 		this.usersList			= [];
 		this.userNamesList		= [];
 		this.userMenuCounter	= 0;
-		this.lastID				= 0;
+		this.lastID			= 0;
 		this.localID			= 0;
 		this.lang				= lang;
 		this.requestStatus		= 'ok';
@@ -111,14 +102,15 @@ var ajaxChat = {
 		if(initStyle) {
 			this.initStyle();
 		}
-		this.initializeFunction = initializeFunction;
-		this.finalizeFunction = finalizeFunction;
+		this.initializeFunction	= initializeFunction;
+		this.finalizeFunction	= finalizeFunction;
 		if(initialize) {
 			this.setLoadHandler();
 		}
 	},
 
 	initConfig: function(config) {
+		this.token					= config["token"];
 		this.loginChannelID			= config['loginChannelID'];
 		this.loginChannelName		= config['loginChannelName'];
 		this.timerRate				= config['timerRate'];
@@ -126,17 +118,17 @@ var ajaxChat = {
 		this.baseURL				= config['baseURL'];
 		this.regExpMediaUrl			= config['regExpMediaUrl'];
 		this.startChatOnLoad		= config['startChatOnLoad'];
-		this.domIDs					= config['domIDs'];
+		this.domIDs				= config['domIDs'];
 		this.settings				= config['settings'];
 		this.nonPersistentSettings	= config['nonPersistentSettings'];
-		this.bbCodeTags				= config['bbCodeTags'];
-		this.colorCodes				= config['colorCodes'];
+		this.bbCodeTags			= config['bbCodeTags'];
+		this.colorCodes			= config['colorCodes'];
 		this.emoticonCodes			= config['emoticonCodes'];
 		this.emoticonFiles			= config['emoticonFiles'];
-		this.soundFiles				= config['soundFiles'];
+		this.soundFiles			= config['soundFiles'];
 		this.sessionName			= config['sessionName'];
 		this.cookieExpiration		= config['cookieExpiration'];
-		this.cookiePath				= config['cookiePath'];
+		this.cookiePath			= config['cookiePath'];
 		this.cookieDomain			= config['cookieDomain'];
 		this.cookieSecure			= config['cookieSecure'];
 		this.chatBotName			= config['chatBotName'];
@@ -145,13 +137,9 @@ var ajaxChat = {
 		this.inactiveTimeout		= Math.max(config['inactiveTimeout'],2);
 		this.privateChannelDiff		= config['privateChannelDiff'];
 		this.privateMessageDiff		= config['privateMessageDiff'];
-		this.showChannelMessages	= config['showChannelMessages'];
+		this.showChannelMessages		= config['showChannelMessages'];
 		this.messageTextMaxLength	= config['messageTextMaxLength'];
-		this.socketServerEnabled	= config['socketServerEnabled'];
-		this.socketServerHost		= config['socketServerHost'];
-		this.socketServerPort		= config['socketServerPort'];
-		this.socketServerChatID		= config['socketServerChatID'];
-		this.debug					= config['debug'];
+		this.debug				= config['debug'];
 		this.DOMbuffering			= false;
 		this.DOMbuffer				= "";
 		this.retryTimerDelay 		= (this.inactiveTimeout*6000 - this.timerRate)/4 + this.timerRate;
@@ -161,7 +149,6 @@ var ajaxChat = {
 		this.dirs = {};
 		this.dirs['emoticons'] 	= this.baseURL+'img/emoticons/';
 		this.dirs['sounds']		= this.baseURL+'sounds/';
-		this.dirs['flash']		= this.baseURL+'flash/';
 	},
 
 	initSettings: function() {
@@ -201,6 +188,7 @@ var ajaxChat = {
 						this.unusedSettings[key] = value;
 					} else {
 						this.settings[key] = value;
+
 					}
 				}
 			}
@@ -262,7 +250,6 @@ var ajaxChat = {
 		this.initializeSettings();
 		this.setSelectedStyle();
 		this.customInitialize();
-		// preload the Alert icon (it can't display if there's no connection unless it's cached!)
 		this.setStatus('retrying');
 		if(typeof this.initializeFunction === 'function') {
 			this.initializeFunction();
@@ -305,7 +292,7 @@ var ajaxChat = {
 		if(this.dom['inputField'] && this.settings['autoFocus']) {
 			this.dom['inputField'].focus();
 		}
-		this.loadFlashInterface();
+		this.initializeHTML5Sounds();
 		this.startChatUpdate();
 	},
 
@@ -409,14 +396,11 @@ var ajaxChat = {
 		}
 	},
 
-
 	startChatUpdate: function() {
 		// Start the chat update and retrieve current user and channel info and set the login channel:
 		var infos = 'userID,userName,userRole,channelID,channelName';
-		if(this.socketServerEnabled) {
-			infos += ',socketRegistrationID';
-		}
 		var params = '&getInfos=' + this.encodeText(infos);
+
 		if(!isNaN(parseInt(this.loginChannelID))) {
 			params += '&channelID='+this.loginChannelID;
 		} else if(this.loginChannelName !== null) {
@@ -433,109 +417,6 @@ var ajaxChat = {
 			requestUrl += paramString;
 		}
 		this.makeRequest(requestUrl,'GET',null);
-	},
-
-	loadFlashInterface: function() {
-		if(this.dom['flashInterfaceContainer']) {
-			this.updateDOM(
-				'flashInterfaceContainer',
-				'<object id="ajaxChatFlashInterface" style="position:absolute; left:-100px;" '
-				+'classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" '
-				+'codebase="'
-				+ window.location.protocol
-				+'//download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0" '
-				+'height="1" width="1">'
-				+'<param name="flashvars" value="bridgeName=ajaxChat"/>'
-				+'<param name="src" value="'+this.dirs['flash']+'FABridge.swf"/>'
-				+'<embed name="ajaxChatFlashInterface" type="application/x-shockwave-flash" pluginspage="'
-				+ window.location.protocol
-				+'//www.macromedia.com/go/getflashplayer" '
-				+'src="'+this.dirs['flash']+'FABridge.swf" height="1" width="1" flashvars="bridgeName=ajaxChat"/>'
-				+'</object>'
-			);
-			FABridge.addInitializationCallback('ajaxChat', this.flashInterfaceLoadCompleteHandler);
-		}
-	},
-
-	flashInterfaceLoadCompleteHandler: function() {
-		ajaxChat.initializeFlashInterface();
-	},
-
-	initializeFlashInterface: function() {
-		if(this.socketServerEnabled) {
-			this.socketTimerRate = (this.inactiveTimeout-1)*60*1000;
-			this.socketConnect();
-		}
-		this.loadSounds();
-		this.initializeCustomFlashInterface();
-	},
-
-	socketConnect: function() {
-		if(!this.socketIsConnected) {
-			try {
-				if(!this.socket && FABridge.ajaxChat) {
-					this.socket = FABridge.ajaxChat.create('flash.net.XMLSocket');
-					this.socket.addEventListener('connect', this.socketConnectHandler);
-					this.socket.addEventListener('close', this.socketCloseHandler);
-					this.socket.addEventListener('data', this.socketDataHandler);
-					this.socket.addEventListener('ioError', this.socketIOErrorHandler);
-					this.socket.addEventListener('securityError', this.socketSecurityErrorHandler);
-				}
-				this.socket.connect(this.socketServerHost, this.socketServerPort);
-			} catch(e) {
-				this.debugMessage('socketConnect', e);
-			}
-		}
-		clearTimeout(this.socketReconnectTimer);
-		this.socketReconnectTimer = null;
-	},
-
-	socketConnectHandler: function(event) {
-		ajaxChat.socketIsConnected = true;
-		// setTimeout is needed to avoid calling the flash interface recursively:
-		setTimeout(ajaxChat.socketRegister, 0);
-	},
-
-	socketCloseHandler: function(event) {
-		ajaxChat.socketIsConnected = false;
-		if(ajaxChat.socket) {
-			clearTimeout(ajaxChat.timer);
-			ajaxChat.updateChat(null);
-		}
-	},
-
-	socketDataHandler: function(event) {
-		ajaxChat.socketUpdate(event.getData());
-	},
-
-	socketIOErrorHandler: function(event) {
-		// setTimeout is needed to avoid calling the flash interface recursively (e.g. sound on new messages):
-		setTimeout(function() { ajaxChat.addChatBotMessageToChatList('/error SocketIO'); }, 0);
-		setTimeout(ajaxChat.updateChatlistView, 1);
-	},
-
-	socketSecurityErrorHandler: function(event) {
-		// setTimeout is needed to avoid calling the flash interface recursively (e.g. sound on new messages):
-		setTimeout(function() { ajaxChat.addChatBotMessageToChatList('/error SocketSecurity'); }, 0);
-		setTimeout(ajaxChat.updateChatlistView, 1);
-	},
-
-	socketRegister: function() {
-		if(this.socket && this.socketIsConnected) {
-			try {
-				this.socket.send(
-					'<register chatID="'
-					+this.socketServerChatID
-					+'" userID="'
-					+this.userID
-					+'" regID="'
-					+this.socketRegistrationID
-					+'"/>'
-				);
-			} catch(e) {
-				this.debugMessage('socketRegister', e);
-			}
-		}
 	},
 
 	loadXML: function(str) {
@@ -575,22 +456,6 @@ var ajaxChat = {
 		return arguments.callee.parser.parseFromString(str, 'text/xml');
 	},
 
-	socketUpdate: function(data) {
-		var xmlDoc = this.loadXML(data);
-		if(xmlDoc) {
-			this.handleOnlineUsers(xmlDoc.getElementsByTagName('user'));
-			// If the root node has the attribute "mode" set to "1" it is a channel message:
-			if((this.showChannelMessages || xmlDoc.firstChild.getAttribute('mode') !== '1') && !this.channelSwitch) {
-				var channelID = xmlDoc.firstChild.getAttribute('channelID');
-				if(channelID === this.channelID ||
-					parseInt(channelID) === parseInt(this.userID)+this.privateMessageDiff
-					) {
-					this.handleChatMessages(xmlDoc.getElementsByTagName('message'));
-				}
-			}
-		}
-	},
-
 	setAudioVolume: function(volume) {
 		volume = parseFloat(volume);
 		if(!isNaN(volume)) {
@@ -600,32 +465,37 @@ var ajaxChat = {
 				volume = 1.0;
 			}
 			this.settings['audioVolume'] = volume;
+
 			try {
-				if(!this.soundTransform) {
-					this.soundTransform = FABridge.ajaxChat.create('flash.media.SoundTransform');
+				for(var key in this.soundFiles) {
+					this.sounds[key].volume = volume;
 				}
-				this.soundTransform.setVolume(volume);
 			} catch(e) {
 				this.debugMessage('setAudioVolume', e);
 			}
 		}
 	},
 
-	loadSounds: function() {
+	initializeHTML5Sounds: function() {
+		var audio, mo3, ogg;
 		try {
-			this.setAudioVolume(this.settings['audioVolume']);
-			this.sounds = {};
-			var sound,urlRequest;
-			for(var key in this.soundFiles) {
-				sound = FABridge.ajaxChat.create('flash.media.Sound');
-				sound.addEventListener('complete', this.soundLoadCompleteHandler);
-				sound.addEventListener('ioError', this.soundIOErrorHandler);
-				urlRequest = FABridge.ajaxChat.create('flash.net.URLRequest');
-				urlRequest.setUrl(this.dirs['sounds']+this.soundFiles[key]);
-				sound.load(urlRequest);
+			audio = document.createElement('audio');
+			mp3 = !!(audio.canPlayType && audio.canPlayType('audio/mpeg;').replace(/no/, ''));
+			ogg = !!(audio.canPlayType && audio.canPlayType('audio/ogg; codecs="vorbis"').replace(/no/, ''));
+			this.sounds = [];
+			if(mp3) {
+				format = ".mp3";
+			} else if(ogg) {
+				format = ".ogg";
+			} else {
+				format = ".wav";
 			}
+			for(var key in this.soundFiles) {
+				this.sounds[key] = new Audio(this.dirs['sounds']+key+format);
+			}
+			this.setAudioVolume(this.settings['audioVolume']);
 		} catch(e) {
-			this.debugMessage('loadSounds', e);
+			this.debugMessage('initializeHTML5Sounds', e);
 		}
 	},
 
@@ -641,7 +511,7 @@ var ajaxChat = {
 	},
 
 	soundIOErrorHandler: function(event) {
-		// setTimeout is needed to avoid calling the flash interface recursively (e.g. sound on new messages):
+		// setTimeout is needed to avoid calling the interface recursively (e.g. sound on new messages):
 		setTimeout(function() { ajaxChat.addChatBotMessageToChatList('/error SoundIO'); }, 0);
 		setTimeout(ajaxChat.updateChatlistView, 1);
 	},
@@ -651,23 +521,13 @@ var ajaxChat = {
 	},
 
 	playSound: function(soundID) {
-		if(this.sounds && this.sounds[soundID]) {
-			try {
-				// play() parameters are
-				// startTime:Number (default = 0),
-				// loops:int (default = 0) and
-				// sndTransform:SoundTransform  (default = null)
-				return this.sounds[soundID].play(0, 0, this.soundTransform);
-			} catch(e) {
-				this.debugMessage('playSound', e);
-			}
-		}
-		return null;
+		var audio = new Audio('sounds/'+soundID+'.mp3');
+		audio.play();
 	},
 
 	playSoundOnNewMessage: function(dateObject, userID, userName, userRole, messageID, messageText, channelID, ip) {
 		var messageParts;
-		if(this.settings['audio'] && this.sounds && this.lastID && !this.channelSwitch) {
+		if(this.settings['audio'] && this.lastID && !this.channelSwitch) {
 			if(this.customSoundOnNewMessage(dateObject, userID, userName, userRole, messageID, messageText, channelID, ip) === false) {
 				return;
 			}
@@ -863,16 +723,7 @@ var ajaxChat = {
 	setChatUpdateTimer: function() {
 		clearTimeout(this.timer);
 		if(this.chatStarted) {
-			var timeout;
-			if(this.socketIsConnected) {
-				timeout = this.socketTimerRate;
-			} else {
-				timeout = this.timerRate;
-				if(this.socketServerEnabled && !this.socketReconnectTimer) {
-					// If the socket connection fails try to reconnect once in a minute:
-					this.socketReconnectTimer = setTimeout(ajaxChat.socketConnect, 60000);
-				}
-			}
+			var timeout = this.timerRate;
 			this.timer = setTimeout(function() {ajaxChat.updateChat(null);}, timeout);
 		}
 	},
@@ -919,9 +770,6 @@ var ajaxChat = {
 			case 'logout':
 				this.handleLogout(infoData);
 				return;
-			case 'socketRegistrationID':
-				this.socketRegistrationID = infoData;
-				this.socketRegister();
 			default:
 				return;
 		}
@@ -1643,6 +1491,8 @@ var ajaxChat = {
 	handleInputFieldKeyDown: function(event) {
 		var text, lastWord, i;
 
+		// TODO: event.key vs. keyCode.
+
 		// Enter key without shift should send messages
 		if(event.keyCode === 13 && !event.shiftKey) {
 			this.sendMessage();
@@ -1963,7 +1813,7 @@ var ajaxChat = {
 	logout: function() {
 		clearTimeout(this.timer);
 		var message = 'logout=true';
-		this.makeRequest(this.ajaxURL,'POST',message);
+		this.makeRequest(this.ajaxURL+"&token="+this.token,'POST',message);
 	},
 
 	handleLogout: function(url) {
@@ -2922,22 +2772,10 @@ var ajaxChat = {
 		if(typeof this.finalizeFunction === 'function') {
 			this.finalizeFunction();
 		}
-		// Ensure the socket connection is closed on unload:
-		if(this.socket) {
-			try {
-				this.socket.close();
-				this.socket = null;
-			} catch(e) {
-				this.debugMessage('finalize::closeSocket', e);
-			}
-		}
+
 		this.persistSettings();
 		this.persistStyle();
 		this.customFinalize();
-	},
-
-	// Override to perform custom actions on flash initialization:
-	initializeCustomFlashInterface: function() {
 	},
 
 	// Override to handle custom info messages

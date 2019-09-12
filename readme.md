@@ -12,13 +12,10 @@ By using JavaScript the chat page can be updated without having to reload the wh
 Requirements
 ------------
 
-
-
 | *Server-Side*          | *Client-Side*                | 
 | ---------------------- | ---------------------------- |
 | PHP >= 5               | Enabled JavaScript           |
 | MySQL >= 4             | Enabled Cookies              |
-| Ruby >= 1.8 (optional) | Flash Plugin >= 9 (optional) |
 
 
 Features
@@ -34,7 +31,7 @@ Features
 - Emoticons/Smilies
 - Easy way to add custom emoticons
 - BBCode support
-- Optional Flash based sound support
+- Sound support
 - Optional visual update information (changing window title)
 - Clickable Hyperlinks
 - Splitting of long words to preserve chat layout
@@ -55,7 +52,6 @@ Features
 - Realtime monitoring and logs viewer
 - Support for unicode (UTF-8) and non-unicode content types
 - Bandwidth saving update calls (only updated data is sent)
-- Optional support to push updates over a Flash based socket connection (increased performance and responsiveness)
 - Survives connection timeouts
 - Easy integration into existing authentication systems
 - Sample phpBB3, MyBB, PunBB, SMF and vBulletin integrations available
