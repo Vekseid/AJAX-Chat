@@ -163,34 +163,6 @@ class AJAXChat {
 	}
 
 	function initLogsViewSession() {
-		if($this->getConfig('socketServerEnabled')) {
-			if(!$this->getSessionVar('logsViewSocketAuthenticated')) {
-				$this->updateLogsViewSocketAuthentication();
-				$this->setSessionVar('logsViewSocketAuthenticated', true);
-			}
-		}
-	}
-
-	function updateLogsViewSocketAuthentication() {
-		if($this->getUserRole() != AJAX_CHAT_ADMIN) {
-			$channels = array();
-			foreach($this->getChannels() as $channel) {
-				if($this->getConfig('logsUserAccessChannelList') && !in_array($channel, $this->getConfig('logsUserAccessChannelList'))) {
-					continue;
-				}
-				array_push($channels, $channel);
-			}
-			array_push($channels, $this->getPrivateMessageID());
-			array_push($channels, $this->getPrivateChannelID());
-		} else {
-			// The channelID "ALL" authenticates for all channels:
-			$channels = array('ALL');
-		}
-		$this->updateSocketAuthentication(
-			$this->getUserID(),
-			$this->getSocketRegistrationID(),
-			$channels
-		);
 	}
 
 	function initChatViewSession() {
@@ -293,9 +265,6 @@ class AJAXChat {
 				break;
 			case 'channelName':
 				$this->addInfoMessage($this->getChannelName(), 'channelName');
-				break;
-			case 'socketRegistrationID':
-				$this->addInfoMessage($this->getSocketRegistrationID(), 'socketRegistrationID');
 				break;
 			default:
 				$this->parseCustomInfoRequest($infoRequest);
@@ -416,13 +385,6 @@ class AJAXChat {
 		// IP Security check variable:
 		$this->setSessionIP($_SERVER['REMOTE_ADDR']);
 
-		// The client authenticates to the socket server using a socketRegistrationID:
-		if($this->getConfig('socketServerEnabled')) {
-			$this->setSocketRegistrationID(
-				md5(uniqid(rand(), true))
-			);
-		}
-
 		// Add userID, userName and userRole to info messages:
 		$this->addInfoMessage($this->getUserID(), 'userID');
 		$this->addInfoMessage($this->getUserName(), 'userName');
@@ -449,8 +411,7 @@ class AJAXChat {
 		$this->insertChatBotMessage(
 			$this->getChannel(),
 			$text,
-			null,
-			1
+			null
 		);	
 	}
 
@@ -494,10 +455,6 @@ class AJAXChat {
 	}
 	
 	function logout($type=null) {
-		// Update the socket server authentication for the user:
-		if($this->getConfig('socketServerEnabled')) {
-			$this->updateSocketAuthentication($this->getUserID());
-		}
 		if($this->isUserOnline()) {
 			$this->chatViewLogout($type);
 		}	
@@ -518,8 +475,7 @@ class AJAXChat {
 		$this->insertChatBotMessage(
 			$this->getChannel(),
 			$text,
-			null,
-			1
+			null
 		);
 	}
 	
@@ -552,8 +508,7 @@ class AJAXChat {
 		$this->insertChatBotMessage(
 			$oldChannel,
 			$text,
-			null,
-			1
+			null
 		);
 
 		// Channel enter message
@@ -561,8 +516,7 @@ class AJAXChat {
 		$this->insertChatBotMessage(
 			$this->getChannel(),
 			$text,
-			null,
-			1
+			null
 		);
 
 		$this->addInfoMessage($channelName, 'channelSwitch');
@@ -1004,16 +958,14 @@ class AJAXChat {
 							$this->insertChatBotMessage(
 								$channel,
 								'/kick '.$textParts[1],
-								null,
-								1
+								null
 							);
 							// Send a copy of the message to the current user, if not in the channel:
 							if($channel != $this->getChannel()) {
 								$this->insertChatBotMessage(
 									$this->getPrivateMessageID(),
 									'/kick '.$textParts[1],
-									null,
-									1
+									null
 								);
 							}
 						}
@@ -1331,8 +1283,7 @@ class AJAXChat {
 					$this->insertChatBotMessage(
 						$this->getChannel(),
 						'/nick '.$oldUserName.' '.$newUserName,
-						null,
-						2
+						null
 					);
 				}
 			}
@@ -1467,20 +1418,18 @@ class AJAXChat {
 		return false;
 	}
 
-	function insertChatBotMessage($channelID, $messageText, $ip=null, $mode=0) {
+	function insertChatBotMessage($channelID, $messageText, $ip=null) {
 		$this->insertCustomMessage(
 			$this->getConfig('chatBotID'),
 			$this->getConfig('chatBotName'),
 			AJAX_CHAT_CHATBOT,
 			$channelID,
 			$messageText,
-			$ip,
-			$mode
+			$ip
 		);
 	}
 	
-	function insertCustomMessage($userID, $userName, $userRole, $channelID, $text, $ip=null, $mode=0) {
-		// The $mode parameter is used for socket updates:
+	function insertCustomMessage($userID, $userName, $userRole, $channelID, $text, $ip=null) {
 		// 0 = normal messages
 		// 1 = channel messages (e.g. login/logout, channel enter/leave, kick)
 		// 2 = messages with online user updates (nick)
@@ -1514,96 +1463,6 @@ class AJAXChat {
 			echo $result->getError();
 			die();
 		}
-		
-		if($this->getConfig('socketServerEnabled')) {
-			$this->sendSocketMessage(
-				$this->getSocketBroadcastMessage(
-					$this->db->getLastInsertedID(),
-					time(),
-					$userID,
-					$userName,
-					$userRole,
-					$channelID,
-					$text,
-					$mode
-				)
-			);	
-		}
-	}
-
-	function getSocketBroadcastMessage(
-		$messageID,
-		$timeStamp,
-		$userID,
-		$userName,
-		$userRole,
-		$channelID,
-		$text,
-		$mode	
-		) {
-		// The $mode parameter:
-		// 0 = normal messages
-		// 1 = channel messages (e.g. login/logout, channel enter/leave, kick)
-		// 2 = messages with online user updates (nick)
-
-		// Get the message XML content:
-		$xml = '<root chatID="'.$this->getConfig('socketServerChatID').'" channelID="'.$channelID.'" mode="'.$mode.'">';
-		if($mode) {
-			// Add the list of online users if the user list has been updated ($mode > 0):
-			$xml .= $this->getChatViewOnlineUsersXML(array($channelID));
-		}
-		if($mode != 1 || $this->getConfig('showChannelMessages')) {
-			$xml .= '<messages>';
-			$xml .= $this->getChatViewMessageXML(
-				$messageID,
-				$timeStamp,
-				$userID,
-				$userName,
-				$userRole,
-				$channelID,
-				$text
-			);
-			$xml .= '</messages>';	
-		}
-		$xml .= '</root>';
-		return $xml;
-	}
-
-	function sendSocketMessage($message) {
-		// Open a TCP socket connection to the socket server:
-		if($socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) {
-			if(@socket_connect($socket,	$this->getConfig('socketServerIP'),	$this->getConfig('socketServerPort'))) {
-				// Append a null-byte to the string as EOL (End Of Line) character
-				// which is required by Flash XML socket communication:
-				$message .= "\0";
-				@socket_write(
-					$socket,
-					$message,
-					strlen($message) // Using strlen to count the bytes instead of the number of UTF-8 characters
-				);
-			}
-			@socket_close($socket);
-		}		
-	}
-
-	function updateSocketAuthentication($userID, $socketRegistrationID=null, $channels=null) {
-		// If no $socketRegistrationID or no $channels are given the authentication is removed for the given user:
-		$authentication = '<authenticate chatID="'.$this->getConfig('socketServerChatID').'" userID="'.$userID.'" regID="'.$socketRegistrationID.'">';
-		if($channels) {
-			foreach($channels as $channelID) {
-				$authentication .= '<channel id="'.$channelID.'"/>';
-			}
-		}
-		$authentication .= '</authenticate>';
-		$this->sendSocketMessage($authentication);
-	}
-
-	function setSocketRegistrationID($value) {
-		$this->setSessionVar('SocketRegistrationID', $value);
-	}
-	
-	function getSocketRegistrationID() {
-		return $this->getSessionVar('SocketRegistrationID');
 	}
 	
 	function rollDice($sides) {
@@ -1638,11 +1497,6 @@ class AJAXChat {
 		if($result->error()) {
 			echo $result->getError();
 			die();
-		}
-
-		// Update the socket server authentication for the kicked user:
-		if($this->getConfig('socketServerEnabled')) {
-			$this->updateSocketAuthentication($userID);
 		}
 		
 		$this->removeUserFromOnlineUsersData($userID);
@@ -1828,11 +1682,6 @@ class AJAXChat {
 				// Add userID to condition for removal:
 				$condition .= 'userID='.$this->db->makeSafe($row['userID']);
 
-				// Update the socket server authentication for the kicked user:
-				if($this->getConfig('socketServerEnabled')) {
-					$this->updateSocketAuthentication($row['userID']);
-				}
-
 				$this->removeUserFromOnlineUsersData($row['userID']);
 				
 				// Insert logout timeout message:
@@ -1840,8 +1689,7 @@ class AJAXChat {
 				$this->insertChatBotMessage(
 					$row['channel'],
 					$text,
-					null,
-					1
+					null
 				);
 			}
 			
@@ -2682,20 +2530,6 @@ class AJAXChat {
 		
 		// Save the channel enter timestamp:
 		$this->setChannelEnterTimeStamp(time());
-		
-		// Update the channel authentication for the socket server:
-		if($this->getConfig('socketServerEnabled')) {
-			$this->updateSocketAuthentication(
-				$this->getUserID(),
-				$this->getSocketRegistrationID(),
-				array($channel,$this->getPrivateMessageID())
-			);
-		}
-
-		// Reset the logs view socket authentication session var:		
-		if($this->getSessionVar('logsViewSocketAuthenticated')) {
-			$this->setSessionVar('logsViewSocketAuthenticated', false);
-		}
 	}
 
 	function isLoggedIn() {
